@@ -1,0 +1,674 @@
+/* ==========================================================================
+   Nexora — supplemental styles (built by AY Systum).
+
+   Tailwind (via CDN) does the layout work. This file holds the design-system
+   layer Tailwind utilities cannot express cleanly: tokens, keyframes, the
+   AI-surface grammar, the pipeline tracker, the reveal sequence, the hero
+   console, designed category covers, scrollbars and element defaults.
+
+   Motion philosophy: motion fires only when (1) the system heard you (120ms),
+   (2) state changed (240ms), or (3) the agent is thinking / finished thinking
+   (orchestrated, 500–900ms). Everything dies under prefers-reduced-motion.
+   ========================================================================== */
+
+:root {
+  --canvas: #05070c;
+  --surface: #0a0e16;
+  --raised: #0f141f;
+  --line: #1e2637;
+  --line-strong: #2b3550;
+  --signal: #22c98a;
+  --signal-bright: #4ade9a;
+  --iris: #8b7cf6;
+  --iris-bright: #a99ef8;
+  --glow-signal: 0 0 24px rgba(34, 201, 138, 0.14);
+  --glow-iris: 0 0 24px rgba(139, 124, 246, 0.12);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --------------------------------------------------------------------------
+   AI-surface grammar: every AI-generated surface — and only those — carries
+   an iris→signal gradient top border. Static content never gets one.
+   -------------------------------------------------------------------------- */
+
+.ai-surface {
+  position: relative;
+}
+
+.ai-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(90deg, var(--iris), var(--signal) 55%, transparent 92%);
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Loading skeletons
+   -------------------------------------------------------------------------- */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #151b29;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.055) 45%,
+    rgba(255, 255, 255, 0.085) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.65s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Pipeline tracker — the seven node chips that narrate a live agent run
+   -------------------------------------------------------------------------- */
+
+.pipe-chip {
+  transition: color 0.24s var(--ease-standard),
+    border-color 0.24s var(--ease-standard),
+    background-color 0.24s var(--ease-standard);
+}
+
+.pipe-chip.is-active {
+  color: var(--iris-bright);
+  border-color: rgba(139, 124, 246, 0.45);
+  background: rgba(139, 124, 246, 0.08);
+  animation: chip-think 1.1s ease-in-out infinite;
+}
+
+.pipe-chip.is-done {
+  color: var(--signal-bright);
+  border-color: rgba(34, 201, 138, 0.4);
+  background: rgba(34, 201, 138, 0.07);
+  animation: none;
+}
+
+@keyframes chip-think {
+  50% {
+    box-shadow: 0 0 12px rgba(139, 124, 246, 0.25);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The reveal — skeleton → recommendation, staged
+   -------------------------------------------------------------------------- */
+
+.reveal-in {
+  animation: reveal-rise 0.4s var(--ease-reveal) both;
+}
+
+.reveal-child {
+  opacity: 0;
+  animation: reveal-rise 0.36s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 60ms);
+}
+
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Confidence bars sweep from zero when the disclosure opens. */
+details[open] .sig-bar > div {
+  animation: bar-fill 0.6s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 60ms);
+}
+
+@keyframes bar-fill {
+  from {
+    width: 0 !important;
+  }
+}
+
+/* Disclosure body: smooth open/close without JS, semantics intact. */
+.disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.24s var(--ease-standard);
+}
+
+details[open] .disclosure {
+  grid-template-rows: 1fr;
+}
+
+.disclosure > div {
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Hero agent console — typed pipeline trace (pure CSS stagger, no JS)
+   -------------------------------------------------------------------------- */
+
+.console-line {
+  opacity: 0;
+  animation: console-in 0.3s ease-out forwards;
+  animation-delay: calc(0.5s + var(--line) * 0.55s);
+}
+
+@keyframes console-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.console-caret {
+  animation: caret-blink 1.1s step-end infinite;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Designed category covers — replaces stock thumbnails everywhere
+   -------------------------------------------------------------------------- */
+
+.card-cover {
+  background-image:
+    linear-gradient(135deg, var(--c1, #151b29) 0%, var(--c2, #0a0e16) 100%),
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(255, 255, 255, 0.025) 23px 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, rgba(255, 255, 255, 0.025) 23px 24px);
+}
+
+.card-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(140px 90px at 70% 20%, rgba(255, 255, 255, 0.07), transparent);
+  opacity: 0;
+  transition: opacity 0.12s var(--ease-standard);
+}
+
+article:hover .card-cover::after,
+a:hover .card-cover::after {
+  opacity: 1;
+}
+
+.cover-glyph {
+  color: #ffffff;
+  text-shadow: 0 0 32px rgba(255, 255, 255, 0.25);
+}
+
+/* Generated cover art: a slow scale on hover reads as "alive" without motion
+   sickness, and keeps the card feeling like a product surface rather than a
+   static tile. */
+.card-cover-img {
+  transform: scale(1.005);
+  transition: transform 0.5s var(--ease-enter), opacity 0.3s var(--ease-standard);
+}
+
+article:hover .card-cover-img,
+a:hover .card-cover-img {
+  transform: scale(1.045);
+}
+
+.cover-agentic-ai        { --c1: #123b2e; --c2: #05070c; }
+.cover-machine-learning  { --c1: #12294a; --c2: #05070c; }
+.cover-deep-learning     { --c1: #2c1b4d; --c2: #05070c; }
+.cover-data-engineering  { --c1: #0e3a3e; --c2: #05070c; }
+.cover-python            { --c1: #233a12; --c2: #05070c; }
+.cover-javascript        { --c1: #4a3a10; --c2: #05070c; }
+.cover-web-development   { --c1: #3e1b33; --c2: #05070c; }
+.cover-devops            { --c1: #3a2410; --c2: #05070c; }
+.cover-cloud             { --c1: #12303f; --c2: #05070c; }
+.cover-career-skills     { --c1: #331f3e; --c2: #05070c; }
+
+/* --------------------------------------------------------------------------
+   Flash messages
+   -------------------------------------------------------------------------- */
+
+.flash-message {
+  animation: flash-in 220ms var(--ease-enter);
+}
+
+.flash-out {
+  animation: flash-out-anim 280ms var(--ease-standard) forwards;
+}
+
+@keyframes flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes flash-out-anim {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Architecture page — vertical pipeline connector
+   -------------------------------------------------------------------------- */
+
+.pipeline-list {
+  position: relative;
+}
+
+.pipeline-list::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 20px;
+  bottom: 20px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--iris), var(--signal));
+  opacity: 0.35;
+}
+
+/* --------------------------------------------------------------------------
+   Nexora Assistant — floating personalised chat
+   -------------------------------------------------------------------------- */
+
+/* THE CLICK BUG: the panel carries Tailwind's `flex` class AND the `hidden`
+   attribute. An author `.flex{display:flex}` rule outranks the UA
+   `[hidden]{display:none}` rule, so the panel stayed laid out — invisible at
+   opacity 0, but sitting on top of the launcher and swallowing every click.
+   Two independent guards now: force display:none while the attribute is set,
+   and make the panel click-through until it is actually open. */
+.assistant-panel[hidden] {
+  display: none !important;
+}
+
+.assistant-panel {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(12px) scale(0.985);
+  transform-origin: bottom right;
+  transition: opacity 0.22s var(--ease-enter), transform 0.22s var(--ease-enter),
+    visibility 0s linear 0.22s;
+}
+
+.assistant-panel.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.22s var(--ease-enter), transform 0.22s var(--ease-enter),
+    visibility 0s;
+}
+
+/* The launcher must always sit above a closed panel. */
+#assistant-toggle {
+  z-index: 55;
+  transition: opacity 0.18s var(--ease-standard), transform 0.18s var(--ease-standard),
+    border-color 0.18s var(--ease-standard), box-shadow 0.18s var(--ease-standard);
+}
+
+.assistant-msg {
+  display: flex;
+  animation: reveal-rise 0.28s var(--ease-reveal) both;
+}
+
+.assistant-msg--user {
+  justify-content: flex-end;
+}
+
+.assistant-msg--bot {
+  justify-content: flex-start;
+}
+
+.assistant-bubble {
+  max-width: 85%;
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.assistant-bubble--user {
+  background: rgba(34, 201, 138, 0.14);
+  border: 1px solid rgba(34, 201, 138, 0.28);
+  color: #eafaf3;
+  border-bottom-right-radius: 4px;
+}
+
+.assistant-bubble--bot {
+  background: #0f141f;
+  border: 1px solid #1e2637;
+  color: #c7d0dc;
+  border-bottom-left-radius: 4px;
+}
+
+.assistant-bubble--error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #fecaca;
+}
+
+/* Typing indicator — three dots, staggered */
+.assistant-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 20px;
+}
+
+.assistant-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--iris-bright);
+  animation: typing-bounce 1.15s ease-in-out infinite;
+}
+
+.assistant-typing span:nth-child(2) { animation-delay: 0.16s; }
+.assistant-typing span:nth-child(3) { animation-delay: 0.32s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-4px); }
+}
+
+/* --------------------------------------------------------------------------
+   Saved items — button states, badge pop, save burst
+   -------------------------------------------------------------------------- */
+
+.save-btn.is-saved {
+  border-color: rgba(34, 201, 138, 0.5);
+  background: rgba(34, 201, 138, 0.12);
+  color: var(--signal-bright);
+}
+
+.save-btn.is-saved svg path {
+  fill: currentColor;
+}
+
+.save-btn--wide.is-saved {
+  background: rgba(34, 201, 138, 0.14);
+  color: var(--signal-bright);
+  border: 1px solid rgba(34, 201, 138, 0.5);
+}
+
+.save-burst {
+  animation: save-burst-anim 0.42s var(--ease-reveal);
+}
+
+@keyframes save-burst-anim {
+  0%   { transform: scale(1); }
+  38%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.cart-btn.is-added,
+.save-btn.is-added {
+  border-color: rgba(34, 201, 138, 0.55);
+  background: rgba(34, 201, 138, 0.14);
+  color: var(--signal-bright);
+}
+
+/* Confirmation tick draws itself on the success screen. */
+.success-check {
+  animation: success-pop 0.5s var(--ease-reveal) both;
+}
+
+.success-tick {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: tick-draw 0.5s var(--ease-reveal) 0.22s forwards;
+}
+
+@keyframes success-pop {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes tick-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Brand mark: the node pulses gently, matching the "agent online" language. */
+.nexora-pulse {
+  animation: mark-pulse 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes mark-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Staggered card entrance on grid pages. */
+.card-enter {
+  opacity: 0;
+  animation: reveal-rise 0.42s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 45ms);
+}
+
+.saved-pop {
+  animation: saved-pop-anim 0.36s var(--ease-reveal);
+}
+
+@keyframes saved-pop-anim {
+  0%   { transform: scale(0.6); opacity: 0.4; }
+  55%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars — the default light scrollbar is jarring on a dark canvas
+   -------------------------------------------------------------------------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #3a465f;
+}
+
+/* --------------------------------------------------------------------------
+   Element defaults
+   -------------------------------------------------------------------------- */
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary {
+  outline-offset: 4px;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Accessibility: honour a user's reduced-motion preference
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton::after {
+    display: none;
+  }
+
+  .console-line,
+  .reveal-child {
+    opacity: 1;
+  }
+
+  .pipe-chip.is-active,
+  .assistant-typing span,
+  .save-burst,
+  .cart-btn.is-added,
+.save-btn.is-added {
+  border-color: rgba(34, 201, 138, 0.55);
+  background: rgba(34, 201, 138, 0.14);
+  color: var(--signal-bright);
+}
+
+/* Confirmation tick draws itself on the success screen. */
+.success-check {
+  animation: success-pop 0.5s var(--ease-reveal) both;
+}
+
+.success-tick {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: tick-draw 0.5s var(--ease-reveal) 0.22s forwards;
+}
+
+@keyframes success-pop {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes tick-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Brand mark: the node pulses gently, matching the "agent online" language. */
+.nexora-pulse {
+  animation: mark-pulse 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes mark-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Staggered card entrance on grid pages. */
+.card-enter {
+  opacity: 0;
+  animation: reveal-rise 0.42s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 45ms);
+}
+
+.saved-pop {
+    animation: none;
+  }
+
+  .assistant-panel {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .card-cover-img,
+  article:hover .card-cover-img,
+  a:hover .card-cover-img {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Print: strip chrome so a recommendation can be printed or saved as PDF
+   -------------------------------------------------------------------------- */
+
+@media print {
+  header,
+  footer,
+  nav,
+  button,
+  #reco-refresh {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}

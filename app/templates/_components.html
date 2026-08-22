@@ -1,0 +1,270 @@
+{# ---------------------------------------------------------------------------
+  Reusable Jinja macros.
+
+  `product_card` handles both ORM Product objects and the plain dicts stored on
+  a recommendation, so the same markup renders catalog results and agent output.
+
+  Design rules encoded here:
+  - Thumbnails are ALWAYS designed category covers (gradient + glyph + grid),
+    never external stock photos — a wrong photo costs more credibility than a
+    consistent branded cover earns.
+  - Machine tokens (category, level, telemetry) render lowercase in mono.
+  - AI-picked cards (show_pitch) carry the pitch as a quoted, iris-marked line.
+--------------------------------------------------------------------------- #}
+
+{% macro level_badge(level) %}
+  {% set dots = {
+    'beginner':     'bg-sky-400',
+    'intermediate': 'bg-amber-400',
+    'advanced':     'bg-fuchsia-400'
+  } %}
+  <span class="inline-flex items-center gap-1.5 font-mono text-[10px] lowercase tracking-wide text-mist-400">
+    <span class="h-1.5 w-1.5 rounded-full {{ dots.get(level|string|lower, 'bg-mist-500') }}" aria-hidden="true"></span>{{ level or 'any' }}
+  </span>
+{% endmacro %}
+
+
+{% macro thumbnail(item, height='aspect-[16/9]', eager=false) %}
+  {# Generated first-party cover art (committed to /static/img/courses). The CSS
+     gradient cover remains as a graceful fallback for any row without one. #}
+  {% set category = item.category if item is not mapping else item.get('category') %}
+  {% set title = item.title if item is not mapping else item.get('title') %}
+  {% set cover = item.thumbnail_url if item is not mapping else item.get('thumbnail_url') %}
+  {% set glyphs = {
+    'Agentic AI': '◈', 'Machine Learning': '∿', 'Deep Learning': '▲',
+    'Data Engineering': '☰', 'Python': '⌘', 'JavaScript': '{ }',
+    'Web Development': '⌗', 'DevOps': '⟲', 'Cloud': '☁', 'Career Skills': '✎'
+  } %}
+  <div class="card-cover cover-{{ (category or 'course') | lower | replace(' ', '-') }} relative {{ height }} w-full overflow-hidden rounded-t-[10px]">
+    {% if cover %}
+      <img src="{{ cover }}"
+           alt="Abstract cover artwork for {{ title }}, a {{ category }} course"
+           {% if eager %}loading="eager" fetchpriority="high"{% else %}loading="lazy" decoding="async"{% endif %}
+           width="800" height="447"
+           class="card-cover-img h-full w-full object-cover">
+    {% else %}
+      <span class="absolute inset-0 grid place-items-center">
+        <span class="cover-glyph select-none text-5xl opacity-25" aria-hidden="true">{{ glyphs.get(category, '◇') }}</span>
+      </span>
+    {% endif %}
+    <span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/10 to-transparent"></span>
+    <span class="absolute bottom-2.5 left-3 font-mono text-[10px] lowercase tracking-[0.18em] text-white/75">{{ category }}</span>
+  </div>
+{% endmacro %}
+
+
+{% macro product_card(item, source='catalog', show_pitch=false, recommendation_id=None) %}
+  {% set pid = item.id if item is not mapping else item.get('id') %}
+  {% set title = item.title if item is not mapping else item.get('title') %}
+  {% set category = item.category if item is not mapping else item.get('category') %}
+  {% set price = item.price if item is not mapping else item.get('price') %}
+  {% set level = item.skill_level if item is not mapping else item.get('skill_level') %}
+  {% set duration = item.duration if item is not mapping else item.get('duration') %}
+  {% set rating = item.rating if item is not mapping else item.get('rating') %}
+  {% set description = item.description if item is not mapping else item.get('description') %}
+  {% set pitch = (item.get('pitch') or item.get('reason')) if item is mapping else '' %}
+  {% set score = item.get('relevance_score') if item is mapping else None %}
+  {% set instructor = item.instructor if item is not mapping else item.get('instructor') %}
+
+  <article class="group flex flex-col overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">
+    <a href="/product/{{ pid }}"
+       class="block"
+       data-track-click="{{ pid }}"
+       data-track-source="{{ source }}"
+       {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
+      {{ thumbnail(item) }}
+    </a>
+
+    <div class="flex flex-1 flex-col gap-3 p-4">
+      <div class="flex items-center justify-between gap-2">
+        <span class="truncate font-mono text-[10px] lowercase tracking-[0.15em] text-signal-400/80">{{ category }}</span>
+        {{ level_badge(level) }}
+      </div>
+
+      <h3 class="line-clamp-2 min-h-[2.75rem] text-[16px] font-semibold leading-snug tracking-[-0.01em] text-white">
+        <a href="/product/{{ pid }}"
+           class="transition hover:text-signal-400"
+           data-track-click="{{ pid }}"
+           data-track-source="{{ source }}"
+           {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
+          {{ title }}
+        </a>
+      </h3>
+
+      {% if show_pitch and pitch %}
+        <p class="rounded-lg border-l-2 border-iris-500/70 bg-iris-500/[0.06] px-3 py-2 text-[13px] italic leading-relaxed text-iris-300/90">
+          {{ pitch }}
+        </p>
+      {% elif description %}
+        <p class="line-clamp-2 text-[13px] leading-relaxed text-mist-400">{{ description }}</p>
+      {% endif %}
+
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {% if instructor %}
+          <span class="flex min-w-0 items-center gap-1.5">
+            <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-800 font-mono text-[9px] font-bold text-mist-300 ring-1 ring-ink-700">
+              {{ instructor.split(' ')[0][0] }}{{ instructor.split(' ')[-1][0] if ' ' in instructor else '' }}
+            </span>
+            <span class="truncate text-[11.5px] text-mist-400">{{ instructor }}</span>
+          </span>
+        {% endif %}
+        {% if rating %}{{ stars(rating) }}{% endif %}
+      </div>
+
+      <div class="mt-auto flex items-end justify-between gap-3 border-t border-ink-800 pt-3">
+        <div class="space-y-1">
+          <p class="text-[17px] font-bold tracking-[-0.01em] text-white">{{ price | money }}</p>
+          <p class="flex items-center gap-2 font-mono text-[10px] text-mist-500">
+            {% if duration %}<span>{{ duration }}</span>{% endif %}
+            {% if score is not none %}<span title="agent relevance score">rel {{ '%.2f' | format(score|float) }}</span>{% endif %}
+          </p>
+        </div>
+        <div class="flex shrink-0 items-center gap-1.5">
+          <button type="button"
+                  data-save-product="{{ pid }}"
+                  data-save-title="{{ title }}"
+                  data-save-state="unsaved"
+                  aria-pressed="false"
+                  aria-label="Save {{ title }} for later"
+                  class="save-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
+                    stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button type="button"
+                  data-cart-add="{{ pid }}"
+                  aria-label="Add {{ title }} to cart"
+                  class="cart-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-signal-500/50 hover:bg-signal-500/10 hover:text-signal-300">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
+                    stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <a href="/product/{{ pid }}"
+             class="grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300"
+             aria-label="View {{ title }}"
+             data-track-click="{{ pid }}"
+             data-track-source="{{ source }}"
+             {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
+            →
+          </a>
+        </div>
+      </div>
+    </div>
+  </article>
+{% endmacro %}
+
+
+{% macro confidence_bar(value, stagger=0) %}
+  {% set pct = ((value | float) * 100) | round | int %}
+  <div class="sig-bar h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter"
+       aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"
+       style="--stagger: {{ stagger }}">
+    <div class="h-full rounded-full bg-gradient-to-r from-iris-500 to-signal-400" style="width: {{ pct }}%"></div>
+  </div>
+{% endmacro %}
+
+
+{% macro stat(label, value, hint=None) %}
+  <div class="rounded-[10px] border border-ink-700/70 bg-ink-900 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
+    <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">{{ label }}</dt>
+    <dd class="mt-1.5 text-2xl font-bold tabular-nums text-white">{{ value }}</dd>
+    {% if hint %}<p class="mt-1 text-xs text-mist-500">{{ hint }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+
+{% macro empty_state(title, body, cta_href=None, cta_label=None) %}
+  <div class="rounded-[10px] border border-dashed border-ink-700 bg-ink-900/50 px-6 py-14 text-center">
+    <p class="text-base font-semibold text-mist-50">{{ title }}</p>
+    <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-mist-500">{{ body }}</p>
+    {% if cta_href %}
+      <a href="{{ cta_href }}" class="mt-5 inline-block rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">{{ cta_label }}</a>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+
+{# Human translations for machine trigger enums; raw value kept in title attr. #}
+{% macro trigger_chip(reason) %}
+  {% set labels = {
+    'first_time': 'first visit',
+    'event_threshold': 'activity threshold',
+    'stale': 'refreshed after inactivity',
+    'manual': 'on demand',
+    'scheduled_digest': 'daily digest'
+  } %}
+  <span class="font-mono text-[10px] lowercase tracking-wider text-mist-500" title="trigger: {{ reason }}">
+    trigger: {{ labels.get(reason, reason) }}
+  </span>
+{% endmacro %}
+
+
+{# ---------------------------------------------------------------------------
+  Brand mark — an inline SVG wordmark, not a raster file, so it stays crisp at
+  any size and inherits the theme. The glyph is an "N" cut from a hexagonal
+  node: a nod to the agent's graph, and readable at 20px.
+--------------------------------------------------------------------------- #}
+{% macro logo(size=32, wordmark=true) %}
+<span class="flex shrink-0 items-center gap-2.5">
+  <svg width="{{ size }}" height="{{ size }}" viewBox="0 0 40 40" fill="none"
+       class="nexora-mark shrink-0" role="img" aria-label="SmartReco">
+    <defs>
+      <linearGradient id="nx-g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#4ADE9A"/>
+        <stop offset="55%" stop-color="#22C98A"/>
+        <stop offset="100%" stop-color="#8B7CF6"/>
+      </linearGradient>
+    </defs>
+    <path d="M20 2.6 34.6 11v18L20 37.4 5.4 29V11z" fill="url(#nx-g)" fill-opacity="0.14"
+          stroke="url(#nx-g)" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M14.4 27.2V13.2l11.2 13.6V12.8" stroke="url(#nx-g)" stroke-width="2.9"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle class="nexora-pulse" cx="25.6" cy="12.8" r="2.7" fill="#4ADE9A"/>
+  </svg>
+  {% if wordmark %}
+    <span class="flex flex-col leading-none">
+      <span class="text-[16px] font-extrabold tracking-[-0.03em] text-white">SmartReco</span>
+      <span class="mt-0.5 hidden font-mono text-[9px] lowercase tracking-[0.2em] text-mist-500 sm:block">by ay systum</span>
+    </span>
+  {% endif %}
+</span>
+{% endmacro %}
+
+
+{# Breadcrumb trail. `items` is [(label, href|None)]; the last item is current. #}
+{% macro breadcrumbs(items) %}
+<nav aria-label="Breadcrumb">
+  <ol class="flex flex-wrap items-center gap-1.5 font-mono text-[11px] lowercase tracking-wide text-mist-500">
+    {% for label, href in items %}
+      <li class="flex items-center gap-1.5">
+        {% if href %}
+          <a href="{{ href }}" class="transition hover:text-mist-200">{{ label }}</a>
+          <span class="text-ink-600" aria-hidden="true">/</span>
+        {% else %}
+          <span class="text-mist-300" aria-current="page">{{ label }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endmacro %}
+
+
+{# Star rating with an accessible label. #}
+{% macro stars(rating, count=None) %}
+  {% set value = (rating | float) if rating else 0 %}
+  <span class="inline-flex items-center gap-1.5" role="img"
+        aria-label="Rated {{ '%.1f' | format(value) }} out of 5">
+    <span class="flex" aria-hidden="true">
+      {% for i in range(1, 6) %}
+        <svg width="12" height="12" viewBox="0 0 20 20" class="{{ 'text-amber-400' if value >= i - 0.25 else 'text-ink-600' }}">
+          <path fill="currentColor" d="M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L1.6 7.7l5.8-.8z"/>
+        </svg>
+      {% endfor %}
+    </span>
+    <span class="font-mono text-[11px] tabular-nums text-mist-400">{{ '%.1f' | format(value) }}</span>
+    {% if count %}<span class="font-mono text-[10px] text-mist-500">({{ count }})</span>{% endif %}
+  </span>
+{% endmacro %}

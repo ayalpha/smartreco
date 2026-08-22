@@ -1,0 +1,70 @@
+zerops:
+  - setup: smartreco
+
+    build:
+      base: python@3.11
+      buildCommands:
+        - python -m venv .venv
+        - .venv/bin/python -m pip install --upgrade pip
+        - .venv/bin/python -m pip install --no-cache-dir -r requirements.txt
+      deployFiles:
+        - .
+      cache:
+        - ~/.cache/pip
+
+    run:
+      base: python@3.11
+      ports:
+        - port: 8000
+          httpSupport: true
+      start: bash ./start.sh
+      healthCheck:
+        httpGet:
+          port: 8000
+          path: /health
+
+      envVariables:
+        DATABASE_URL: ${db_connectionString}
+        QDRANT_URL: http://${qdrant_host}:6333
+
+        ENVIRONMENT: production
+        DEBUG: "false"
+        LOG_LEVEL: INFO
+        SQL_ECHO: "false"
+
+        ALGORITHM: HS256
+        ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
+
+        QDRANT_COLLECTION: smartreco_products
+        VECTOR_SEARCH_TOP_K: "12"
+
+        MESH_BASE_URL: https://api.meshapi.ai/v1
+        MESH_MODEL_REASONING: openai/gpt-4o
+        MESH_MODEL_WRITER: anthropic/claude-3-5-sonnet
+        MESH_MODEL_GRADER: openai/gpt-4o-mini
+        MESH_EMBEDDING_MODEL: openai/text-embedding-3-small
+        MESH_EMBEDDING_DIM: "1536"
+        MESH_MAX_RETRIES: "3"
+        MESH_TIMEOUT_SECONDS: "60"
+
+        AGENT_EVENT_TRIGGER_INTERVAL: "10"
+        AGENT_STALE_HOURS: "2"
+        AGENT_STALE_MIN_EVENTS: "5"
+        AGENT_MIN_RELEVANT_PRODUCTS: "3"
+        AGENT_MAX_RETRIEVAL_RETRIES: "2"
+        AGENT_RECENT_EVENT_WINDOW: "60"
+        AGENT_FINAL_PRODUCT_COUNT: "6"
+        AGENT_LOCK_TTL_SECONDS: "300"
+
+        EMAIL_ENABLED: "true"
+        EMAIL_BACKEND: console
+        DIGEST_SCHEDULE_HOUR: "18"
+        DIGEST_SCHEDULE_MINUTE: "0"
+        DIGEST_MIN_EVENTS_TODAY: "5"
+        DIGEST_PRODUCT_COUNT: "3"
+
+        SCHEDULER_ENABLED: "true"
+        SCHEDULER_TIMEZONE: UTC
+
+        LANGSMITH_TRACING: "false"
+        LANGSMITH_PROJECT: smartreco-agent

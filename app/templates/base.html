@@ -1,0 +1,304 @@
+{# ---------------------------------------------------------------------------
+  Base layout: navigation, flash messages, footer and the behavioural tracker.
+
+  Design system: "ink" surfaces + "mist" text ramp (all pairings WCAG AA),
+  signal-green = the agent's OUTCOME colour, iris-violet = the agent's
+  REASONING colour. Machine voice = lowercase JetBrains Mono; human voice =
+  Inter. AI-generated surfaces carry the .ai-surface gradient top border.
+--------------------------------------------------------------------------- #}
+{% import "_components.html" as ui %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}SmartReco — a behavioural AI agent that watches how you learn, then argues for what is next. Built by AY Systum.{% endblock %}">
+  <meta property="og:site_name" content="SmartReco">
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="A behavioural AI recommendation agent — seven-node LangGraph pipeline, hybrid retrieval, every model call through Mesh. Built by AY Systum.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#05070C">
+  <meta name="author" content="AY Systum">
+
+  {# Tracking context consumed by static/js/tracker.js #}
+  <meta name="smartreco-authenticated" content="{{ 'true' if current_user else 'false' }}">
+  <meta name="smartreco-path" content="{{ request.url.path }}">
+  {% block tracking_meta %}{% endblock %}
+
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            ink: {
+              950: '#05070C', 900: '#0A0E16', 850: '#0F141F',
+              800: '#151B29', 700: '#1E2637', 600: '#2B3550', 500: '#3A465F',
+            },
+            mist: {
+              50:  '#F2F5FA',  // primary text      16.9:1 on ink-900
+              200: '#C7D0DC',  // strong secondary  11.2:1
+              400: '#98A4B5',  // secondary          6.9:1
+              500: '#7E8A9C',  // muted floor        5.0:1
+            },
+            signal: {
+              300: '#7DF0BC', 400: '#4ADE9A', 500: '#22C98A', 600: '#12A16C',
+            },
+            iris: {
+              300: '#C7BDFC', 400: '#A99EF8', 500: '#8B7CF6',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/custom.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>">
+</head>
+
+<body class="h-full bg-ink-950 text-mist-200 font-sans antialiased selection:bg-signal-500/30">
+
+<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded focus:bg-signal-500 focus:px-3 focus:py-2 focus:text-ink-950">Skip to content</a>
+
+<!-- ============================== NAVIGATION ============================== -->
+<header class="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-950/85 backdrop-blur-md">
+  <nav class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:px-8">
+    <a href="/" class="group flex shrink-0 items-center" aria-label="SmartReco home">
+      {{ ui.logo(32) }}
+    </a>
+
+    {% set nav_items = [('/', 'SmartReco'), ('/catalog', 'Catalog'), ('/architecture', 'How it works')] %}
+
+    <div class="hidden items-center gap-1 md:flex">
+      {% for href, label in nav_items %}
+        <a href="{{ href }}"
+           class="nav-link relative rounded-md px-3 py-1.5 text-sm font-medium transition
+                  {% if request.url.path == href %}text-white after:absolute after:inset-x-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-signal-500{% else %}text-mist-400 hover:bg-ink-850 hover:text-mist-50{% endif %}">
+          {{ label }}
+        </a>
+      {% endfor %}
+      {% if current_user and current_user.is_admin %}
+        <a href="/admin"
+           class="nav-link relative rounded-md px-3 py-1.5 text-sm font-medium transition
+                  {% if request.url.path.startswith('/admin') %}text-white after:absolute after:inset-x-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-signal-500{% else %}text-mist-400 hover:bg-ink-850 hover:text-mist-50{% endif %}">
+          Admin
+        </a>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-2">
+      <form action="/catalog" method="get" class="hidden lg:block">
+        <label class="sr-only" for="nav-search">Search courses</label>
+        <input id="nav-search" type="search" name="q" placeholder="Search courses…"
+               value="{{ filters.q if filters is defined else '' }}"
+               class="w-52 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+      </form>
+
+      <a href="/saved" id="saved-nav" aria-label="Saved courses"
+         class="relative grid h-9 w-9 place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-300 transition hover:border-signal-500/50 hover:text-signal-300">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
+                stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        </svg>
+        <span id="saved-count"
+              class="absolute -right-1.5 -top-1.5 hidden min-w-[18px] rounded-full bg-signal-500 px-1 text-center font-mono text-[10px] font-bold leading-[18px] text-ink-950"
+              aria-live="polite">0</span>
+      </a>
+
+      <a href="/cart" id="cart-nav" aria-label="Cart"
+         class="relative grid h-9 w-9 place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-300 transition hover:border-signal-500/50 hover:text-signal-300">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
+                stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-cart-count
+              class="absolute -right-1.5 -top-1.5 hidden min-w-[18px] rounded-full bg-signal-500 px-1 text-center font-mono text-[10px] font-bold leading-[18px] text-ink-950"
+              aria-live="polite">0</span>
+      </a>
+
+      {% if current_user %}
+        <a href="/profile" class="flex items-center gap-2 rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm text-mist-200 transition hover:border-ink-600 hover:text-white sm:px-3">
+          <span class="grid h-5 w-5 place-items-center rounded-full bg-signal-500/20 text-[10px] font-bold text-signal-400">
+            {{ current_user.display_name[0] | upper }}
+          </span>
+          <span class="hidden max-w-[9rem] truncate sm:inline">{{ current_user.display_name }}</span>
+        </a>
+        <form action="/logout" method="post" class="hidden sm:block">
+          <button type="submit" class="rounded-md px-3 py-1.5 text-sm text-mist-400 transition hover:text-white">Sign out</button>
+        </form>
+      {% else %}
+        <a href="/login" class="hidden rounded-md px-3 py-1.5 text-sm font-medium text-mist-200 transition hover:text-white sm:block">Sign in</a>
+        <a href="/register" class="rounded-md bg-signal-500 px-3.5 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)]">Get started</a>
+      {% endif %}
+
+      {# ---- Mobile menu: <details> disclosure — no JS, natively keyboard-accessible ---- #}
+      <details class="relative md:hidden" id="mobile-menu">
+        <summary class="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-200 transition hover:border-ink-600 [&::-webkit-details-marker]:hidden"
+                 aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </summary>
+        <div class="absolute right-0 top-11 z-50 w-64 rounded-xl border border-ink-700 bg-ink-950/95 p-2 shadow-2xl shadow-black/60 backdrop-blur-md">
+          <form action="/catalog" method="get" class="p-1.5">
+            <label class="sr-only" for="mobile-search">Search courses</label>
+            <input id="mobile-search" type="search" name="q" placeholder="Search courses…"
+                   class="w-full rounded-md border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm text-mist-200 placeholder-mist-500 outline-none focus:border-signal-500/60">
+          </form>
+          {% for href, label in nav_items %}
+            <a href="{{ href }}"
+               class="block rounded-md px-3.5 py-3 text-sm font-medium transition
+                      {% if request.url.path == href %}bg-ink-800 text-white{% else %}text-mist-200 hover:bg-ink-850 hover:text-white{% endif %}">
+              {{ label }}
+            </a>
+          {% endfor %}
+          {% if current_user %}
+            {% if current_user.is_admin %}
+              <a href="/admin" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Admin</a>
+            {% endif %}
+            <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/cart" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Cart</a>
+              <a href="/saved" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Saved courses</a>
+              <a href="/profile" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Profile</a>
+              <form action="/logout" method="post">
+                <button type="submit" class="block w-full rounded-md px-3.5 py-3 text-left text-sm font-medium text-mist-400 transition hover:bg-ink-850 hover:text-white">Sign out</button>
+              </form>
+            </div>
+          {% else %}
+            <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/cart" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Cart</a>
+              <a href="/saved" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Saved courses</a>
+              <a href="/login" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Sign in</a>
+            </div>
+          {% endif %}
+        </div>
+      </details>
+    </div>
+  </nav>
+</header>
+
+<!-- ============================ FLASH MESSAGES ============================ -->
+{% if flashes %}
+  <div class="mx-auto mt-4 max-w-7xl space-y-2 px-4 sm:px-8" id="flash-container">
+    {% for item in flashes %}
+      {% set styles = {
+        'success': 'border-signal-500/40 bg-signal-500/10 text-signal-400',
+        'error':   'border-rose-500/40 bg-rose-500/10 text-rose-300',
+        'warning': 'border-amber-500/40 bg-amber-500/10 text-amber-300',
+        'info':    'border-sky-500/40 bg-sky-500/10 text-sky-300'
+      } %}
+      <div role="status"
+           class="flash-message flex items-start justify-between gap-4 rounded-lg border px-4 py-3 text-sm {{ styles.get(item.category, styles['info']) }}">
+        <span>{{ item.message }}</span>
+        <button type="button" onclick="this.closest('.flash-message').remove()" aria-label="Dismiss" class="shrink-0 opacity-60 transition hover:opacity-100">✕</button>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- ================================= MAIN ================================= -->
+<main id="main" class="mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-8">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ================================ FOOTER ================================ -->
+{% if slim_footer is defined and slim_footer %}
+<footer class="border-t border-ink-800 bg-ink-950">
+  <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-6 sm:px-8">
+    <p class="flex items-center gap-2 text-sm font-bold text-white">
+      <span class="text-signal-400">◈</span> {{ app_name }}
+    </p>
+    <p class="font-mono text-[11px] lowercase text-mist-500">
+      built by ay systum · every model call via mesh api
+    </p>
+  </div>
+</footer>
+{% else %}
+<footer class="border-t border-ink-800 bg-ink-950">
+  <div class="mx-auto max-w-7xl px-4 py-10 sm:px-8">
+    <div class="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+      <div class="max-w-md">
+        <p class="flex items-center gap-2 text-sm font-bold text-white">
+          <span class="text-signal-400">◈</span> {{ app_name }}
+        </p>
+        <p class="mt-2 text-sm leading-relaxed text-mist-500">
+          A behavioural recommendation agent built on a seven-node LangGraph state machine
+          with hybrid dense ⊕ BM25 retrieval. Every model call is routed through the Mesh API.
+        </p>
+        <p class="mt-4 text-sm text-mist-400">
+          Built by <span class="font-semibold text-mist-200">AY Systum</span>
+        </p>
+        <p class="mt-1 font-mono text-[11px] lowercase leading-relaxed text-mist-500">
+          <span class="text-signal-400/80">powered by mesh api</span>
+        </p>
+      </div>
+
+      <dl class="grid grid-cols-2 gap-x-10 gap-y-3 text-sm sm:grid-cols-3">
+        <div>
+          <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">Agent</dt>
+          <dd class="mt-1 space-y-1 text-mist-400">
+            <a class="block transition hover:text-mist-50" href="/architecture">Architecture</a>
+            <a class="block transition hover:text-mist-50" href="/saved">Saved courses</a>
+            <a class="block transition hover:text-mist-50" href="/cart">Cart</a>
+            <a class="block transition hover:text-mist-50" href="/api/agent/graph">Graph JSON</a>
+          </dd>
+        </div>
+        <div>
+          <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">API</dt>
+          <dd class="mt-1 space-y-1 text-mist-400">
+            <a class="block transition hover:text-mist-50" href="/docs">OpenAPI docs</a>
+            <a class="block transition hover:text-mist-50" href="/health/ready">Readiness</a>
+          </dd>
+        </div>
+        <div>
+          <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">Status</dt>
+          <dd class="mt-1 space-y-1 font-mono text-xs text-mist-500">
+            <span class="block">env: {{ environment }}</span>
+            <span class="block">gateway: {{ 'configured' if mesh_configured else 'absent' }}</span>
+            <span class="block">tracing: {{ 'on' if langsmith_enabled else 'off' }}</span>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</footer>
+{% endif %}
+
+{% include "_assistant.html" %}
+
+<script src="/static/js/tracker.js" defer></script>
+<script src="/static/js/saved.js" defer></script>
+<script src="/static/js/cart.js" defer></script>
+<script>
+  // Flash auto-dismiss: fade out after 6s, pause the timer while hovered.
+  (function () {
+    document.querySelectorAll('.flash-message').forEach(function (el) {
+      var remaining = 6000, start = Date.now(), timer;
+      function arm() {
+        start = Date.now();
+        timer = window.setTimeout(function () {
+          el.classList.add('flash-out');
+          window.setTimeout(function () { el.remove(); }, 300);
+        }, remaining);
+      }
+      el.addEventListener('mouseenter', function () {
+        window.clearTimeout(timer);
+        remaining -= Date.now() - start;
+      });
+      el.addEventListener('mouseleave', arm);
+      arm();
+    });
+  })();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
